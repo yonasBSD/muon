@@ -544,6 +544,26 @@ determine_target_build_name(struct workspace *wk,
 }
 
 static bool
+typecheck_empty_array(struct workspace *wk, struct args_kw *kw)
+{
+	if (!kw->set || get_obj_type(wk, kw->val) != obj_array) {
+		return true;
+	}
+
+	if (get_obj_array(wk, kw->val)->len == 0) {
+		kw->val = 0;
+		kw->set = false;
+		return true;
+	}
+
+	type_tag t = kw->type & (obj_typechecking_type_tag | (~tc_array));
+
+	vm_error_at(
+		wk, kw->node, "expexted %s or an empty array for keyword %s", typechecking_type_to_s(wk, t), kw->key);
+	return false;
+}
+
+static bool
 create_target(struct workspace *wk,
 	struct args_norm *an,
 	struct args_kw *akw,
@@ -850,6 +870,10 @@ create_target(struct workspace *wk,
 
 		uint32_t i;
 		for (i = 0; i < ARRAY_LEN(pch_args); ++i) {
+			if (!typecheck_empty_array(wk, pch_args[i].kw)) {
+				return false;
+			}
+
 			if (!pch_args[i].kw->set) {
 				continue;
 			}
@@ -1041,26 +1065,6 @@ create_target(struct workspace *wk,
 }
 
 static bool
-typecheck_string_or_empty_array(struct workspace *wk, struct args_kw *kw)
-{
-	if (!kw->set) {
-		return true;
-	}
-
-	enum obj_type t = get_obj_type(wk, kw->val);
-	if (t == obj_string) {
-		return true;
-	} else if (t == obj_array && get_obj_array(wk, kw->val)->len == 0) {
-		kw->set = false;
-		kw->val = 0;
-		return true;
-	} else {
-		vm_error_at(wk, kw->node, "expected string or [], got %s", obj_type_to_s(t));
-		return false;
-	}
-}
-
-static bool
 both_libs_can_reuse_objects(struct workspace *wk, struct args_kw *akw)
 {
 	bool lib_specific_args[] = {
@@ -1126,7 +1130,7 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 #define E(lang, s, t) [bt_kw_##lang##s] = { #lang #s, t }
 #define TOOLCHAIN_ENUM(lang)                                                                                 \
 	E(lang, _args, TYPE_TAG_LISTIFY | obj_string), E(lang, _static_args, TYPE_TAG_LISTIFY | obj_string), \
-		E(lang, _shared_args, TYPE_TAG_LISTIFY | obj_string), E(lang, _pch, tc_string | tc_file | tc_build_target),
+		E(lang, _shared_args, TYPE_TAG_LISTIFY | obj_string), E(lang, _pch, tc_string | tc_file | tc_build_target | tc_array),
 		FOREACH_COMPILER_EXPOSED_LANGUAGE(TOOLCHAIN_ENUM)
 #undef TOOLCHAIN_ENUM
 #undef E
@@ -1165,9 +1169,9 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 		}
 	}
 
-	if (!typecheck_string_or_empty_array(wk, &akw[bt_kw_name_suffix])) {
+	if (!typecheck_empty_array(wk, &akw[bt_kw_name_suffix])) {
 		return false;
-	} else if (!typecheck_string_or_empty_array(wk, &akw[bt_kw_name_prefix])) {
+	} else if (!typecheck_empty_array(wk, &akw[bt_kw_name_prefix])) {
 		return false;
 	}
 
