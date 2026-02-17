@@ -126,7 +126,7 @@ determine_linker_from_objects_iter(struct workspace *wk, void *_ctx, obj val)
 }
 
 static bool
-build_tgt_determine_linker(struct workspace *wk, uint32_t err_node, struct obj_build_target *tgt)
+build_tgt_determine_linker(struct workspace *wk, struct obj_build_target *tgt)
 {
 	if (!obj_array_foreach(wk, tgt->src, tgt, determine_linker_iter)) {
 		return ir_err;
@@ -153,7 +153,7 @@ build_tgt_determine_linker(struct workspace *wk, uint32_t err_node, struct obj_b
 	}
 
 	if (!tgt->dep_internal.link_language) {
-		vm_error_at(wk, err_node, "unable to determine linker for target");
+		vm_error(wk, "unable to determine linker for target");
 		return false;
 	}
 
@@ -565,7 +565,8 @@ typecheck_empty_array(struct workspace *wk, struct args_kw *kw)
 
 static bool
 create_target(struct workspace *wk,
-	struct args_norm *an,
+	obj name,
+	obj sources,
 	struct args_kw *akw,
 	enum tgt_type type,
 	bool ignore_sources,
@@ -575,7 +576,7 @@ create_target(struct workspace *wk,
 	*res = make_obj(wk, obj_build_target);
 	struct obj_build_target *tgt = get_obj_build_target(wk, *res);
 	tgt->type = type;
-	tgt->name = an[0].val;
+	tgt->name = name;
 	tgt->cwd = current_project(wk)->cwd;
 	tgt->build_dir = current_project(wk)->build_dir;
 	tgt->machine = coerce_machine_kind(wk, &akw[bt_kw_native]);
@@ -757,8 +758,6 @@ create_target(struct workspace *wk,
 		obj_array_dedup_in_place(wk, &tgt->objects);
 
 		if (!ignore_sources) {
-			obj sources = an[1].val;
-
 			if (akw[bt_kw_sources].set) {
 				obj_array_extend(wk, sources, akw[bt_kw_sources].val);
 			}
@@ -766,7 +765,6 @@ create_target(struct workspace *wk,
 			obj_array_extend(wk, sources, tgt->dep_internal.sources);
 
 			struct process_build_tgt_sources_ctx ctx = {
-				.err_node = an[1].node,
 				.res = tgt->src,
 				.tgt_id = *res,
 				.prepend_include_directories = prepend_include_directories,
@@ -784,9 +782,7 @@ create_target(struct workspace *wk,
 
 		if (!get_obj_array(wk, tgt->src)->len && !get_obj_array(wk, tgt->objects)->len
 			&& !akw[bt_kw_link_whole].set && tgt->type != tgt_static_library) {
-			uint32_t node = akw[bt_kw_sources].set ? akw[bt_kw_sources].node : an[1].node;
-
-			vm_error_at(wk, node, "target declared with no linkable sources");
+			vm_error(wk, "target declared with no linkable sources");
 			return false;
 		}
 
@@ -796,7 +792,6 @@ create_target(struct workspace *wk,
 	}
 
 	{ // include directories
-		uint32_t node = an[0].node; // TODO: not a very informative error node
 		obj include_directories = make_obj(wk, obj_array);
 
 		if (implicit_include_directories) {
@@ -804,15 +799,13 @@ create_target(struct workspace *wk,
 		}
 
 		if (akw[bt_kw_include_directories].set) {
-			node = akw[bt_kw_include_directories].node;
-
 			obj_array_extend(wk, include_directories, akw[bt_kw_include_directories].val);
 		}
 
 		obj_array_extend_nodup(wk, include_directories, prepend_include_directories);
 
 		obj coerced;
-		if (!coerce_include_dirs(wk, node, include_directories, false, &coerced)) {
+		if (!coerce_include_dirs(wk, 0, include_directories, false, &coerced)) {
 			return false;
 		}
 
@@ -914,7 +907,7 @@ create_target(struct workspace *wk,
 		}
 	}
 
-	if (!build_tgt_determine_linker(wk, an[0].node, tgt)) {
+	if (!build_tgt_determine_linker(wk, tgt)) {
 		return false;
 	}
 
@@ -1088,8 +1081,11 @@ both_libs_can_reuse_objects(struct workspace *wk, struct args_kw *akw)
 static bool
 tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type argtype, bool tgt_type_from_kw)
 {
-	struct args_norm an[]
-		= { { obj_string }, { TYPE_TAG_GLOB | tc_coercible_files | tc_generated_list }, ARG_TYPE_NULL };
+	struct args_norm an[] = {
+		{ TYPE_TAG_GLOB | tc_coercible_files | tc_generated_list,
+			.desc = "The name for this build target, followed by an optional list of sources." },
+		ARG_TYPE_NULL,
+	};
 
 	struct args_kw akw[bt_kwargs_count + 1] = {
 		[bt_kw_sources] = { "sources", TYPE_TAG_LISTIFY | tc_coercible_files | tc_generated_list },
@@ -1138,6 +1134,26 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 
 	if (!pop_args(wk, an, akw)) {
 		return false;
+	}
+
+	obj name, sources;
+	{
+		uint32_t len = get_obj_array(wk, an[0].val)->len;
+		if (len == 0) {
+			vm_error_at(wk, an[0].node, "build target must have a name");
+			return false;
+		}
+
+		name = obj_array_get_head(wk, an[0].val);
+		if (!typecheck(wk, an[0].node, name, obj_string)) {
+			return false;
+		}
+
+		sources = obj_array_slice(wk, an[0].val, 1, len);
+	}
+
+	if (wk->vm.in_analyzer) {
+		return true;
 	}
 
 	if (tgt_type_from_kw) {
@@ -1219,7 +1235,7 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 			}
 		}
 
-		if (!create_target(wk, an, akw, t, ignore_sources, &tgt)) {
+		if (!create_target(wk, name, sources, akw, t, ignore_sources, &tgt)) {
 			return false;
 		}
 
@@ -1245,38 +1261,38 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 	return true;
 }
 
-FUNC_IMPL(kernel, executable, tc_build_target, func_impl_flag_impure)
+FUNC_IMPL(kernel, executable, tc_build_target)
 {
 	return tgt_common(wk, res, tgt_executable, tgt_executable, false);
 }
 
-FUNC_IMPL(kernel, static_library, tc_build_target, func_impl_flag_impure)
+FUNC_IMPL(kernel, static_library, tc_build_target)
 {
 	return tgt_common(wk, res, tgt_static_library, tgt_static_library, false);
 }
 
-FUNC_IMPL(kernel, shared_library, tc_build_target, func_impl_flag_impure)
+FUNC_IMPL(kernel, shared_library, tc_build_target)
 {
 	return tgt_common(wk, res, tgt_dynamic_library, tgt_dynamic_library, false);
 }
 
-FUNC_IMPL(kernel, both_libraries, tc_both_libs, func_impl_flag_impure)
+FUNC_IMPL(kernel, both_libraries, tc_both_libs)
 {
 	return tgt_common(
 		wk, res, tgt_static_library | tgt_dynamic_library, tgt_static_library | tgt_dynamic_library, false);
 }
 
-FUNC_IMPL(kernel, library, tc_build_target | tc_both_libs, func_impl_flag_impure)
+FUNC_IMPL(kernel, library, tc_build_target | tc_both_libs)
 {
 	return tgt_common(wk, res, get_option_default_library(wk), tgt_static_library | tgt_dynamic_library, false);
 }
 
-FUNC_IMPL(kernel, shared_module, tc_build_target, func_impl_flag_impure)
+FUNC_IMPL(kernel, shared_module, tc_build_target)
 {
 	return tgt_common(wk, res, tgt_shared_module, tgt_shared_module, false);
 }
 
-FUNC_IMPL(kernel, build_target, tc_build_target | tc_both_libs, func_impl_flag_impure)
+FUNC_IMPL(kernel, build_target, tc_build_target | tc_both_libs)
 {
 	return tgt_common(wk, res, 0, tgt_executable | tgt_static_library | tgt_dynamic_library, true);
 }
