@@ -230,6 +230,7 @@ build_target_extract_object(struct workspace *wk, struct build_target_extract_ob
 		return true;
 	case compiler_language_assembly:
 	case compiler_language_nasm:
+	case compiler_language_masm:
 	case compiler_language_c:
 	case compiler_language_cpp:
 	case compiler_language_llvm_ir:

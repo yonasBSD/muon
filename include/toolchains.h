@@ -26,6 +26,7 @@ struct obj_compiler;
 	_(assembly)                          \
 	_(llvm_ir)                           \
 	_(nasm)                              \
+	_(masm)                              \
 	_(rust)                              \
 	_(vala)
 

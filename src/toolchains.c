@@ -181,6 +181,7 @@ static const char *compiler_language_names[compiler_language_count] = {
 	[compiler_language_assembly] = "assembly",
 	[compiler_language_llvm_ir] = "llvm_ir",
 	[compiler_language_nasm] = "nasm",
+	[compiler_language_masm] = "masm",
 	[compiler_language_rust] = "rust",
 	[compiler_language_vala] = "vala",
 };
@@ -297,6 +298,7 @@ coalesce_link_languages(enum compiler_language cur, enum compiler_language new)
 		}
 		break;
 	case compiler_language_nasm:
+	case compiler_language_masm:
 	case compiler_language_c:
 	case compiler_language_c_obj:
 	case compiler_language_objc:
