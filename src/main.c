@@ -780,6 +780,27 @@ cmd_dump_toolchains(struct workspace *wk, uint32_t argc, uint32_t argi, char *co
 }
 
 static bool
+cmd_generate_test_html(struct workspace *wk, uint32_t argc, uint32_t argi, char *const argv[])
+{
+	opt_for(1) {
+	}
+	opt_end();
+
+	struct source data = { 0 };
+	if (!fs_read_entire_file(wk->a_scratch, argv[argi], &data)) {
+		return false;
+	}
+
+	struct source src;
+	if (!embedded_get(wk, "html/test_out.html", &src)) {
+		return false;
+	}
+
+	printf(src.src, data.src);
+	return true;
+}
+
+static bool
 cmd_internal(struct workspace *wk, uint32_t argc, uint32_t argi, char *const argv[])
 {
 	static struct opt_command commands[] = {
@@ -793,6 +814,7 @@ cmd_internal(struct workspace *wk, uint32_t argc, uint32_t argi, char *const arg
 		{ "exe", cmd_exe, "run an external command" },
 		{ "repl", cmd_repl, "start a meson language repl" },
 		{ "summary", cmd_summary, "print a configured project's summary" },
+		{ "generate_test_html", cmd_generate_test_html, "generate a html test report from a tests.json" },
 		0,
 	};
 
