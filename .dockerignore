@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: Stone Tickle <lattis@mochiro.moe>
+# SPDX-License-Identifier: GPL-3.0-only
+
+*
+
+!bootstrap.sh
+!doc
+!include
+!meson.build
+!meson_options.txt
+!src
+!tests
+!tools
