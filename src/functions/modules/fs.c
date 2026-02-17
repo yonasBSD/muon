@@ -208,6 +208,8 @@ FUNC_IMPL(module_fs, read, tc_string, func_impl_flag_impure, .desc = "Read a fil
 		return false;
 	}
 
+	workspace_add_regenerate_dep(wk, tstr_into_str(wk, &path));
+
 	*res = make_strn(wk, src.src, src.len);
 	return true;
 }
