@@ -242,7 +242,9 @@ FUNC_IMPL(kernel, subproject, tc_subproject)
 	}
 
 	if (wk->vm.in_analyzer) {
-		subproject(wk, an[0].val, requirement_auto, 0, 0, res);
+		if (wk->projects.len) {
+			subproject(wk, an[0].val, requirement_auto, 0, 0, res);
+		}
 		return true;
 	}
 
