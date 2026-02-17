@@ -1137,7 +1137,7 @@ obj_array_sort(struct workspace *wk, void *usr_ctx, obj arr, obj_array_sort_func
 }
 
 obj
-obj_array_slice(struct workspace *wk, obj a, int64_t start, int64_t end)
+obj_array_slice(struct workspace *wk, obj a, uint32_t start, uint32_t end)
 {
 	struct obj_array *src = get_obj_array(wk, a);
 

@@ -660,7 +660,7 @@ toolchain_component_detect(struct workspace *wk,
 			// cmd_arr
 			cmd_arr = c;
 		} else {
-			obj argv0 = obj_array_index(wk, c, 0);
+			obj argv0 = obj_array_get_head(wk, c);
 
 			obj found_prog = 0;
 			struct find_program_ctx find_program_ctx = {
@@ -676,7 +676,7 @@ toolchain_component_detect(struct workspace *wk,
 
 			struct obj_external_program *ep = get_obj_external_program(wk, found_prog);
 			obj_array_dup(wk, ep->cmd_array, &cmd_arr);
-			obj_array_extend(wk, cmd_arr, obj_array_slice(wk, c, 1, -1));
+			obj_array_extend(wk, cmd_arr, obj_array_slice(wk, c, 1, get_obj_array(wk, c)->len));
 		}
 
 		if (!default_candidate.found) {

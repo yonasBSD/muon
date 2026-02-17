@@ -674,7 +674,7 @@ bool obj_array_flatten_one(struct workspace *wk, obj val, obj *res);
 typedef int32_t (*obj_array_sort_func)(struct workspace *wk, void *_ctx, obj a, obj b);
 int32_t obj_array_sort_by_str(struct workspace *wk, void *_ctx, obj a, obj b);
 void obj_array_sort(struct workspace *wk, void *usr_ctx, obj arr, obj_array_sort_func func, obj *res);
-obj obj_array_slice(struct workspace *wk, obj arr, int64_t i0, int64_t i1);
+obj obj_array_slice(struct workspace *wk, obj arr, uint32_t start, uint32_t end);
 obj obj_array_get_tail(struct workspace *wk, obj arr);
 obj obj_array_get_head(struct workspace *wk, obj arr);
 obj obj_array_pop(struct workspace *wk, obj arr);
