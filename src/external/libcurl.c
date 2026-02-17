@@ -240,14 +240,16 @@ mc_fetch_collect(int32_t i, struct mc_fetch_stats *stats)
 
 	ctx = bucket_arr_get(&mc_ctx->transfers, i);
 
-	curl_off_t content_length = 0;
-	if (curl_easy_getinfo(ctx->handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &content_length) != CURLE_OK) {
-		content_length = 0;
-	}
-	stats->total = content_length;
-	stats->downloaded = ctx->len;
+	if (ctx->running) {
+		curl_off_t content_length = 0;
+		if (curl_easy_getinfo(ctx->handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &content_length) != CURLE_OK) {
+			content_length = 0;
+		}
 
-	if (!ctx->running) {
+		stats->total = content_length;
+		stats->downloaded = ctx->len;
+		return mc_fetch_collect_result_pending;
+	} else {
 		if (ctx->err != CURLE_OK) {
 			mc_err(ctx, ctx->err, CURLM_OK);
 			return mc_fetch_collect_result_error;
@@ -255,8 +257,6 @@ mc_fetch_collect(int32_t i, struct mc_fetch_stats *stats)
 
 		return mc_fetch_collect_result_done;
 	}
-
-	return mc_fetch_collect_result_pending;
 }
 
 bool
