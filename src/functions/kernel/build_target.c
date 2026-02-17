@@ -18,6 +18,7 @@
 #include "functions/kernel/build_target.h"
 #include "functions/kernel/dependency.h"
 #include "install.h"
+#include "lang/analyze.h"
 #include "lang/object_iterators.h"
 #include "lang/typecheck.h"
 #include "log.h"
@@ -1152,14 +1153,17 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 		sources = obj_array_slice(wk, an[0].val, 1, len);
 	}
 
-	if (wk->vm.in_analyzer) {
-		return true;
-	}
-
 	if (tgt_type_from_kw) {
 		if (!akw[bt_kw_target_type].set) {
 			vm_error(wk, "missing required kwarg: %s", akw[bt_kw_target_type].key);
 			return false;
+		}
+
+		if (wk->vm.in_analyzer) {
+			if (get_obj_type(wk, akw[bt_kw_target_type].val) == obj_typeinfo) {
+				*res = make_typeinfo(wk, tc_build_target | tc_both_libs);
+				return true;
+			}
 		}
 
 		if (!type_from_kw(wk, akw[bt_kw_target_type].node, akw[bt_kw_target_type].val, &type)) {
@@ -1189,6 +1193,15 @@ tgt_common(struct workspace *wk, obj *res, enum tgt_type type, enum tgt_type arg
 		return false;
 	} else if (!typecheck_empty_array(wk, &akw[bt_kw_name_prefix])) {
 		return false;
+	}
+
+	if (wk->vm.in_analyzer) {
+		type_tag return_type = tc_build_target, both_libs = tgt_static_library | tgt_dynamic_library;
+		if ((argtype & both_libs) == both_libs) {
+			return_type = tc_both_libs;
+		}
+		*res = make_typeinfo(wk, return_type);
+		return true;
 	}
 
 	if (type == (tgt_static_library | tgt_dynamic_library) && !akw[bt_kw_pic].set) {
