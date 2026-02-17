@@ -14,26 +14,23 @@ SPDX-License-Identifier: GPL-3.0-only
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        margin: none;
+        margin: 0;
         padding: 0;
-        padding-top: 0;
         font-family: sans-serif;
         background-color: #282A36;
         color: #F8F8F2;
+        height: 100%%;
+        overflow: hidden;
       }
 
-      textarea {
+      pre {
         background: #282A36;
-        border-radius: 5px;
-        border: 1px solid #6272A4;
+        border-left: 1px solid #6272A4;
         color: #F8F8F2;
         display: inline-flex;
         font-family: monospace;
-        gap: 10px;
-        line-height: 21px;
-        min-height: 5em;
-        outline: none;
-        padding: 0;
+        padding-left: 1em;
+        margin-top: 0;
         width: 100%%;
       }
 
@@ -62,8 +59,8 @@ SPDX-License-Identifier: GPL-3.0-only
         margin: 0;
       }
 
-      .test-info {
-        padding-left: 10px;
+      .test-info h3 {
+        margin: 0;
       }
 
       .button-selected {
@@ -74,41 +71,146 @@ SPDX-License-Identifier: GPL-3.0-only
         display: flex;
         flex-direction: row;
         align-items: center;
-        justify-content: space-between;
+        justify-content: left;
+        height: 60px;
+      }
+
+      button {
+        margin-right: 10px;
       }
 
       .wrapper {
-        padding: 10px;
-        width: 80%%;
-        max-width: 800px;
+        height: calc(100vh - 60px);
+        width: 100%%;
       }
 
-      .elements {
+      table {
+        border-collapse: collapse;
+        width: 100%%;
+        font-family: monospace;
+        background-color: #282a36;
+        color: #f8f8f2;
+      }
+      th {
+        background-color: #44475a;
+        color: #bd93f9;
+        font-weight: bold;
+        padding: 10px 10px;
+        text-align: left;
+        border: 1px solid #6272a4;
+      }
+      td {
+        padding: 10px 10px;
+        text-align: left;
+        border: 1px solid #44475a;
+      }
+      tr:nth-child(even) {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+      tr:hover {
+        background-color: #6272a4;
+        color: #f8f8f2;
+        cursor: default;
+      }
+
+      tr.selected {
+        background-color: #50FA7B;
+        color: #282A36;
+      }
+
+      .tests {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
+        width: 100%%;
+        height: 100%%;
+        overflow: scroll;
       }
 
-      @media screen and (max-width: 500px) {
-        .wrapper {
-          width: 100%%;
-        }
+      .left {
+        width: 100%%;
+        overflow-y: auto;
+      }
+
+      .right {
+        padding-left: 10px;
+        width: 100%%;
+        display: none;
+        overflow-y: auto;
       }
     </style>
   </head>
   <body>
+    <div class="nav"></div>
     <div class="wrapper">
-      <div class="nav"></div>
-      <hr>
-      <div class="elements"></div>
+      <div class="tests">
+        <div class="left">
+          <table class="elements"></table>
+        </div>
+        <div class="right" id="test-info">
+        </div>
+      </div>
     </div>
 
     <script type="application/json" id="testData">%s</script>
     <script>
       var testData = JSON.parse(document.getElementById("testData").innerHTML);
       var tests = testData.tests;
+      var selected = null;
 
       function statusEq(s, t) {
         return s === 'all' || s === t.status;
+      }
+
+      function toggleTestInfo(t) {
+        const info = document.getElementById("test-info");
+        if (selected !== null) {
+          selected.elem.classList.remove('selected');
+
+          if (selected === t) {
+            selected = null;
+            info.style.display = 'none';
+            return;
+          }
+        }
+
+        selected = t;
+        t.elem.classList.add('selected');
+        info.replaceChildren();
+
+        var div = document.createElement("div");
+        div.classList.add('test-info');
+        const pushP = inner => {
+          var p = document.createElement("h3");
+          p.innerHTML = inner;
+          div.appendChild(p);
+        }
+        const pushTextarea = inner => {
+          var textarea = document.createElement("pre");
+          inner = inner.replaceAll("<", "&lt;");
+          inner = inner.replaceAll(">", "&gt;");
+          textarea.innerHTML = inner;
+          div.appendChild(textarea);
+        }
+
+        pushP(t.name);
+
+        var p = document.createElement("pre");
+        p.innerHTML = `suite ${t.suite}, duration: ${t.duration}s`
+        div.appendChild(p);
+
+        if (t.stdout !== "") {
+          pushP(`stdout`);
+          pushTextarea(t.stdout);
+        }
+        if (t.stderr !== "") {
+          pushP(`stderr`);
+          pushTextarea(t.stderr);
+        }
+        info.appendChild(div);
+
+        info.style.display = 'block';
+        info.scrollTop = 0;
+        info.scrollLeft = 0;
       }
 
       function buildPage() {
@@ -136,48 +238,19 @@ SPDX-License-Identifier: GPL-3.0-only
             nav.appendChild(button);
             return button;
           }
-          for (let k of Object.keys(icons)) { pushNavButton(k); }
           pushNavButton('all').classList.add('button-selected');
+          for (let k of Object.keys(icons)) { pushNavButton(k); }
         }
         buildNav();
 
         function buildElements() {
-          var elements = document.getElementsByClassName("elements")[0];
           for (let t of tests) {
-            var summary = document.createElement("summary");
-            summary.innerHTML = `${icons[t.status]} ${t.name}`
-
-            var div = document.createElement("div");
-            div.classList.add('test-info');
-            const pushP = inner => {
-              var p = document.createElement("p");
-              p.innerHTML = inner;
-              div.appendChild(p);
-            }
-            const pushTextarea = inner => {
-              var textarea = document.createElement("textarea");
-              textarea.setAttribute('readonly', true);
-              textarea.innerHTML = inner;
-              textarea.setAttribute('rows', (inner.match(/\n/g) || "").length + 1);
-              div.appendChild(textarea);
-            }
-
-            pushP(`suite: ${t.suite}`);
-            pushP(`duration: ${t.duration}s`);
-            if (t.stdout !== "") {
-              pushP(`stdout:`);
-              pushTextarea(t.stdout);
-            }
-            if (t.stderr !== "") {
-              pushP(`stderr:`);
-              pushTextarea(t.stderr);
-            }
-
-            t.elem = document.createElement("details");
-            t.elem.appendChild(summary);
-            t.elem.appendChild(div);
-
-            elements.appendChild(t.elem);
+            var row = document.createElement("tr");
+            var col = document.createElement("td");
+                                              col.innerHTML = `${icons[t.status]} ${t.name}`;
+            row.appendChild(col);
+            t.elem = row;
+            row.onclick = () => { toggleTestInfo(t) };
           }
         }
         buildElements();
@@ -186,14 +259,32 @@ SPDX-License-Identifier: GPL-3.0-only
 
       var currentFilter = 'filter_all';
       function filterByClass(k) {
+        var elements = document.getElementsByClassName("elements")[0];
+        elements.replaceChildren();
+        var selectedFound = false;
         for (let t of tests) {
-          t.elem.style.display = statusEq(k, t) ? '' : 'none'
+          if (statusEq(k, t)) {
+            elements.appendChild(t.elem);
+            if (selected === t) {
+              selectedFound = true;
+            }
+          }
+        }
+
+        if (selectedFound) {
+          selected.elem.scrollIntoView();
+        } else {
+          elements.scrollTop = 0;
+          if (selected !== null) {
+            toggleTestInfo(selected);
+          }
         }
 
         document.getElementById(currentFilter).classList.remove("button-selected");
         currentFilter = `filter_${k}`;
         document.getElementById(currentFilter).classList.add("button-selected");
       }
+      filterByClass("all");
     </script>
   </body>
 </html>
