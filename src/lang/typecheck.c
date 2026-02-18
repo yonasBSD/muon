@@ -552,10 +552,13 @@ complex_type_preset_get(struct workspace *wk, enum complex_type_preset t)
 			complex_type_or,
 			make_complex_type(wk,
 				complex_type_or,
-				make_complex_type(wk, complex_type_nested, tc_array, tc_string),
+				complex_type_preset_get(wk, tc_cx_list_of_str),
 				tc_string),
 			make_complex_type(
 				wk, complex_type_nested, tc_dict, tc_string | tc_number | tc_bool | tc_array));
+		break;
+	case tc_cx_list_of_str:
+		tag = make_complex_type(wk, complex_type_nested, tc_array, tc_string);
 		break;
 	case tc_cx_options_deprecated_kw:
 		tag = make_complex_type(wk,
@@ -564,7 +567,7 @@ complex_type_preset_get(struct workspace *wk, enum complex_type_preset t)
 			make_complex_type(wk,
 				complex_type_or,
 				make_complex_type(wk, complex_type_nested, tc_dict, tc_string),
-				make_complex_type(wk, complex_type_nested, tc_array, tc_string)));
+				complex_type_preset_get(wk, tc_cx_list_of_str)));
 		break;
 	case tc_cx_list_of_number: {
 		tag = make_complex_type(wk, complex_type_nested, tc_array, tc_number);
@@ -578,7 +581,7 @@ complex_type_preset_get(struct workspace *wk, enum complex_type_preset t)
 		tag = make_complex_type(wk,
 			complex_type_or,
 			tc_file | tc_external_program | tc_build_target | tc_custom_target | tc_python_installation,
-			make_complex_type(wk, complex_type_nested, tc_array, tc_string));
+			complex_type_preset_get(wk, tc_cx_list_of_str));
 		break;
 	}
 	case tc_cx_toolchain_overrides: {
@@ -591,7 +594,7 @@ complex_type_preset_get(struct workspace *wk, enum complex_type_preset t)
 				make_complex_type(wk,
 					complex_type_or,
 					tc_bool,
-					make_complex_type(wk, complex_type_nested, tc_array, tc_string))));
+					complex_type_preset_get(wk, tc_cx_list_of_str))));
 		break;
 	}
 	default: UNREACHABLE;

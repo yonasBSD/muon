@@ -145,6 +145,7 @@ type_tag flatten_type_flags(struct workspace *wk, type_tag t, enum flatten_type_
 
 enum complex_type_preset {
 	tc_cx_options_dict_or_list = 1,
+	tc_cx_list_of_str,
 	tc_cx_options_deprecated_kw,
 	tc_cx_list_of_number,
 	tc_cx_dict_of_str,
